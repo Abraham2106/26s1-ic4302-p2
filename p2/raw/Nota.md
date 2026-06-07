@@ -1,0 +1,1 @@
+Estos .json son generados par apruebas si gustan usarlos ok, pero pueden borrarlos cuando quieran no son esenciales

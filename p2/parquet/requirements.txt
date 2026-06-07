@@ -1,0 +1,4 @@
+gdelt
+pyarrow 
+pandas
+pathlib
