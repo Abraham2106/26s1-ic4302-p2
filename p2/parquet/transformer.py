@@ -5,7 +5,7 @@ from pathlib import Path
 
 JSON_DIR   = Path("26s1-ic4302-p2/p2/raw")
 OUTPUT_DIR = Path("26s1-ic4302-p2/p2/data")
-TABLES      = ["events", "gkg", "mentions"]
+TABLES     = ["events", "gkg", "mentions"]
 
 def json_to_parquet(json_path: Path, output_dir: Path) -> tuple[Path, pd.DataFrame]:
     data = json.loads(json_path.read_text(encoding="utf-8"))
