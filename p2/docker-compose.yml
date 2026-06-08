@@ -46,8 +46,23 @@ services:
       - spark-master
     networks:
       - spark-net
+  mongodb:
+    image: mongo:7
+    container_name: mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin123
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - spark-net
 
 networks:
   spark-net:
     name: spark-net
     driver: bridge
+volumes:
+  mongo-data:
