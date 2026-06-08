@@ -143,15 +143,17 @@ Airflow usará `SparkSubmitOperator` apuntando al master en `spark://spark-maste
 - Esta configuración usa `file://` para leer Parquet. Cuando el equipo de infraestructura levante HDFS, el único cambio en los jobs es reemplazar el `DATA_PATH` de `/opt/spark-data` a `hdfs://namenode:9000/gdelt/raw/<timestamp>/`.
 
 
-# TL ; DR
-```bash 
+# NO LEÍ... MUCHO TEXTO :(
+```bash
+# PASO 1
 docker-compose up -d
 
-# verificar cluster (verify_cluster.py)
+# PASO 2 verificar cluster (verify_cluster.py)
 docker exec spark-master /opt/spark/bin/spark-submit --master spark://spark-master:7077 /opt/spark-jobs/verify_cluster.py
 
-# correr queries (example_queries)
+# PASO 3 correr queries (example_queries)
 docker exec spark-master /opt/spark/bin/spark-submit --master spark://spark-master:7077 /opt/spark-jobs/example_queries.py
 
-# dónde está instalado Spark dentro del contenedor?: /opt/spark/bin/spark-submit
+# nota: dónde está instalado Spark dentro del contenedor?: /opt/spark/bin/spark-submit
 ```
+Luego en el navegador abrir `http://localhost:8080/` para la Apache Spark UI
