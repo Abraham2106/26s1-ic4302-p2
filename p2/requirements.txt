@@ -2,3 +2,4 @@ gdelt
 pyarrow 
 pandas
 pathlib
+pyspark
