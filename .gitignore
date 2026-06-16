@@ -1,2 +1,5 @@
 issues*.sh
 sim.py 
+p2/airflow/logs/*
+!p2/airflow/logs/.gitkeep
+__pycache__ 
