@@ -1,5 +1,11 @@
 # Apache Spark — Guía para el equipo
 
+## Sobre el dockerfile 
+
+La imagen base de Spark corre con un usuario no-root cuyo `$HOME` apunta a `/nonexistent` (literalmente, la carpeta no existe). Pip intenta escribir caché y config ahí, falla con permission denied.
+`USER root` sube a root para poder instalar. `ENV HOME=/tmp` le da a pip una carpeta que sí existe para escribir sus temporales. Después pip instala sin problemas.
+En Airflow no se hizo esto porque esa imagen tiene un hook que detecta UID 0 y aborta el pip a propósito. En Spark no hay ese hook, así que el truco funciona.
+
 ## ¿Qué es Spark y por qué lo usamos?
 
 Apache Spark es un motor de procesamiento de datos distribuido. "Distribuido" significa que el trabajo se divide entre varias máquinas (o contenedores) que colaboran en paralelo. En este proyecto, Spark es el componente que toma los archivos Parquet que genera el Loader, ejecuta los 19 análisis geopolíticos, y escribe los resultados en MongoDB.
