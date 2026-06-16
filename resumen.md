@@ -1,0 +1,175 @@
+# Resumen de la arquitectura actual
+---
+Authors:
+* Abraham Solano
+---
+## Explicación General de la Arquitectura
+### Objetivo del proyecto
+En pocas palabras consiste en montar un pipeline de análisis de datos, en contenedores.
+La arquitectura que se propone para el proyecto es la siguiente:
+* Loader de Datos
+* Análisis de Spark
+* Capa de presentación (con MongoDB como base de datos)
+**Capas que no fueron agregadas en la visión original**
+* Loader de Datos
+* Transformer de `.csv` a `.parquet`
+* Análisis de Spark
+* Loader a MongoDB y esquemas necesarios para mapear los datos y sus estructuras
+* Capa de presentación (con MongoDB como base de datos)
+Siguiendo con la visión del proyecto se sugiere el uso de los siguientes contenedores:
+* Contenedor del Loader
+* Contenedor de Spark (al menos dos nodos: master y dos nodos workers)
+* Contenedor de Mongo
+* Contenedor de Capa de Presentación (Apache Superset)
+> [!NOTE]
+> Se valora utilizar Apache Airflow para el pipeline
+
+### Funcionamiento de cada etapa
+
+#### Loader
+**Paso 1: Loader**
+
+```mermaid
+flowchart LR
+    GDELT[GDELT API] -->|cada 15m| Loader[Contenedor Loader]
+    Loader -->|.csv raw| Raw[(raw/)]
+```
+
+Se conecta a [GDELT](https://www.gdeltproject.org/) y baja los siguientes archivos: Events table, Mentions table y GKG. Esto se debe hacer cada 15 minutos de forma continua, manteniendo únicamente los datos RAW del período que el equipo decida (por ejemplo, la última hora), dado el volumen de información que genera GDELT.
+> El encargado de esta área debe explicar su implementación.
+
+#### Transformer
+
+**Paso 2: + Transformer**
+
+```mermaid
+flowchart LR
+    GDELT[GDELT API] -->|cada 15m| Loader[Contenedor Loader]
+    Loader -->|.csv raw| Raw[(raw/)]
+    Raw --> Transformer[Transformer]
+    Transformer -->|.parquet| Data[(data/)]
+```
+
+No explícito dentro del documento; su necesidad reside en la facilidad que genera analizar archivos `.parquet` sobre `.csv` en Apache Spark.
+Se toman los archivos raw `.csv` descargados por el Loader y se convierten en archivos `.parquet`.
+Se recomienda organizarlos por carpetas para una mayor organización: que el directorio output del Loader sea un directorio llamado `raw`, el cual sirva como fuente de datos para el Transformer, y que este a su vez los transforme en `.parquet` y los guarde dentro de un directorio llamado `data`.
+Este directorio `data` tendrá los datos listos para que Spark los tome y haga análisis con ellos.
+#### Analisis 
+
+**Paso 3: + Spark (Analisis)**
+
+```mermaid
+flowchart LR
+    GDELT[GDELT API] -->|cada 15m| Loader[Contenedor Loader]
+    Loader -->|.csv raw| Raw[(raw/)]
+    Raw --> Transformer[Transformer]
+    Transformer -->|.parquet| Data[(data/)]
+    Data --> SparkM[Spark Master]
+    SparkM --> SparkW1[Spark Worker 1]
+    SparkM --> SparkW2[Spark Worker 2]
+```
+
+Ya con los datos, se debe de hacer el analisis, usando Spark leyendo los archivos Parquet.
+> Nota: En este punto me di cuenta que Airflow es un most, es el `trigger` de Spark 
+> El encargado de esta área debe explicar su implementación.
+
+Son 17 analisis pedidos en el enunciado + 2 que nosotros agreguemos (TODO: decidir cuales 2).
+
+Lista rapida pa no perderla (copiada del enunciado, falta mapear quien hace cual):
+- Mapa de calor de intensidad de conflictos por pais por dia (escala Goldstein)
+- Top 10 paises que generan mas eventos noticiosos por dia
+- Correlacion AvgTone vs numero de fuentes
+- Distribucion de tipos de eventos CAMEO por region
+- Matriz de interaccion entre tipos de actores (gob vs militar vs rebeldes)
+- Paises con mayor cobertura mediatica por evento
+- Tendencia de sentimiento por pais en el tiempo (promedio movil AvgTone)
+- Pares de paises que mas entran en conflicto
+- Deteccion de escalada de eventos (aumento acelerado de menciones en 24h)
+- Agrupamiento de eventos de conflicto por religion por region
+- Principales temas del GKG por continente por año
+- Organizaciones mas mencionadas globalmente por dia
+- Analisis de rezago: tono de hoy predice conflicto de mañana?
+- Grafo de red diplomacia vs conflictos entre paises
+- Indice de diversidad de fuentes por pais
+- Frecuencia de conflictos por etnia de los actores
+- Deteccion de breaking news (0 a 100+ menciones en <1h)
+- + 2 propios (pendiente)
+
+> El encargado de esta área debe explicar su implementación (osea, como Spark lee de Parquet, que transformaciones le hace a cada uno, y como calcula cada metrica).
+
+#### Loader a MongoDB
+
+**Paso 4: + MongoDB (Loader a Mongo)**
+
+```mermaid
+flowchart LR
+    GDELT[GDELT API] -->|cada 15m| Loader[Contenedor Loader]
+    Loader -->|.csv raw| Raw[(raw/)]
+    Raw --> Transformer[Transformer]
+    Transformer -->|.parquet| Data[(data/)]
+    Data --> SparkM[Spark Master]
+    SparkM --> SparkW1[Spark Worker 1]
+    SparkM --> SparkW2[Spark Worker 2]
+    SparkW1 -->|resultados 19 analisis| Mongo[(MongoDB)]
+    SparkW2 -->|resultados 19 analisis| Mongo
+```
+
+TODO: aca falta definir el esquema de Mongo. Por ahora la idea es que cada uno de los 19 analisis (17 + 2) tenga su propia coleccion en Mongo, ya con el resultado calculado (no datos crudos), pa que Superset solo tenga que leer y graficar sin tener que procesar nada.
+
+Pendiente:
+- Definir nombres de colecciones
+- Definir estructura de documentos por cada analisis (capaz no todos son iguales, unos son series de tiempo, otros son rankings, otros son matrices/grafos)
+- Quien hace el insert, Spark directo o un script aparte
+
+> El encargado de esta área debe explicar su implementación.
+
+#### Capa de Presentacion
+
+**Paso 5: + Capa de Presentacion (pipeline completo)**
+
+```mermaid
+flowchart LR
+    GDELT[GDELT API] -->|cada 15m| Loader[Contenedor Loader]
+    Loader -->|.csv raw| Raw[(raw/)]
+    Raw --> Transformer[Transformer]
+    Transformer -->|.parquet| Data[(data/)]
+    Data --> SparkM[Spark Master]
+    SparkM --> SparkW1[Spark Worker 1]
+    SparkM --> SparkW2[Spark Worker 2]
+    SparkW1 -->|resultados 19 analisis| Mongo[(MongoDB)]
+    SparkW2 -->|resultados 19 analisis| Mongo
+    Mongo --> Superset[Apache Superset]
+```
+
+Se va a usar Apache Superset conectado a Mongo (o a lo que termine siendo el datasource final, revisar si Superset jala bien de Mongo directo o si toca meter algo intermedio).
+
+La idea es que sea sencillo, nada de drill downs como dice el enunciado, solo mostrar los 19 analisis con su grafico/tabla correspondiente, en una o varias paginas/dashboards.
+
+TODO:
+- Confirmar conexion Superset-Mongo
+- Armar los dashboards
+- Las 3 conclusiones que pide el enunciado (esto se hace al final cuando ya hay datos reales)
+
+> El encargado de esta área debe explicar su implementación.
+
+
+#### Capa final - Orquestacion por medio de Airflow 
+
+**Diagrama final: pipeline completo con Airflow como orquestador**
+
+```mermaid
+flowchart TB
+    Airflow[Apache Airflow<br/>orquestador del pipeline]
+
+    subgraph Pipeline[" "]
+        direction LR
+        Loader[Loader] --> Transformer[Transformer] --> Spark["Spark<br/>(master + 2 workers)"] --> Mongo[(MongoDB)] --> Superset[Superset]
+    end
+
+    Airflow -.->|trigger / schedule| Loader
+    Airflow -.->|trigger / schedule| Transformer
+    Airflow -.->|trigger / schedule| Spark
+    Airflow -.->|trigger / schedule| Superset
+```
+
+> Nota: las flechas solidas son flujo de datos, las punteadas son orquestacion (Airflow no mueve datos, solo dispara/coordina cada paso).
