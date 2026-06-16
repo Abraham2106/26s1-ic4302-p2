@@ -3,3 +3,4 @@ pyarrow
 pandas
 pathlib
 pyspark
+apache-airflow
