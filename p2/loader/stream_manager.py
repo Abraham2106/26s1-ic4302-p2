@@ -1,40 +1,44 @@
 from pathlib import Path
 import requests
-import os
+import pandas as pd
+import io
 
-URL = "http://data.gdeltproject.org/gdeltv2/lastupdate.txt"
+URL        = "http://data.gdeltproject.org/gdeltv2/lastupdate.txt"
+OUTPUT_DIR = Path("/opt/airflow/raw")
+TABLES     = ["events", "gkg", "mentions"]
 
-def obtener_datos():
-
-    Path("archivos_zip").mkdir(exist_ok=True)
-
-    # extraer texto del link
+def loader() -> list[tuple[str, bytes]]:
+    # descarga el indice y retorna (table, contenido_zip) por cada tabla
     texto_indice = requests.get(URL)
     texto_indice.raise_for_status()
-
-    # mira los 3 archivos y los descarga
+    resultados = []
     for linea in texto_indice.text.splitlines():
         peso, codigo, enlace = linea.split()
-        nombre = enlace.split("/")[-1]
-        destino = Path("archivos_zip") / nombre
-
-        # evitar descargar dos veces
-        if destino.exists():
+        enlace_lower = enlace.lower()
+        table = "events" if ".export." in enlace_lower else next((t for t in TABLES if t in enlace_lower), None)
+        if not table:
             continue
-
         archivo = requests.get(enlace)
         archivo.raise_for_status()
+        resultados.append((table, archivo.content))
+    return resultados
 
-        with open(destino, "wb") as f:
-            f.write(archivo.content)
+def extractor(table: str, contenido: bytes) -> pd.DataFrame:
+    # zip -> csv en memoria
+    df = pd.read_csv(io.BytesIO(contenido), compression="zip", sep="\t", low_memory=False, header=None)
+    df.columns = [str(c).lower() for c in df.columns]
+    return df
 
-        #print(f"Descargado: {nombre}") para debug
+def transformer(table: str, df: pd.DataFrame) -> None:
+    # csv -> parquet en disco
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    df.to_parquet(OUTPUT_DIR / f"{table}.parquet", index=False, engine="pyarrow")
+    print(f"{table} -> ok")
 
-# puede mejorar, elimina todos menos los ultimos 12 archivos
-def eliminar_datos():
-    nombres = sorted(os.listdir("archivos_zip"))
+def main():
+    for table, contenido in loader():
+        df = extractor(table, contenido)
+        transformer(table, df)
 
-    eliminar = max(0, len(nombres) - 12)
-
-    for i in range(eliminar):
-        os.remove(f"archivos_zip/{nombres[i]}")
+if __name__ == "__main__":
+    main()
