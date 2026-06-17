@@ -144,9 +144,9 @@ flowchart TB
         Loader[Loader] --> Spark["Spark<br/>(master + 2 workers)"] --> Mongo[(MongoDB)] --> Superset[Superset]
     end
 
-    Airflow -.->|trigger / schedule| Loader
-    Airflow -.->|trigger / schedule| Spark
-    Airflow -.->|trigger / schedule| Superset
+    Airflow -.->| gdelt_loader | Loader
+    Airflow -.->| gdelt_spark  | Spark
+    Airflow -.->| gdelt_mongo  | Mongo
 ```
 
 > Nota: las flechas solidas son flujo de datos, las punteadas son orquestacion (Airflow no mueve datos, solo dispara/coordina cada paso).
