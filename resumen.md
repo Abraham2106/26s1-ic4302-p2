@@ -11,8 +11,7 @@ La arquitectura que se propone para el proyecto es la siguiente:
 * Análisis de Spark
 * Capa de presentación (con MongoDB como base de datos)
 **Capas que no fueron agregadas en la visión original**
-* Loader de Datos
-* Transformer de `.csv` a `.parquet`
+* Loader de Datos (incluye transformación de `.csv` a `.parquet`)
 * Análisis de Spark
 * Loader a MongoDB y esquemas necesarios para mapear los datos y sus estructuras
 * Capa de presentación (con MongoDB como base de datos)
@@ -32,38 +31,21 @@ Siguiendo con la visión del proyecto se sugiere el uso de los siguientes conten
 ```mermaid
 flowchart LR
     GDELT[GDELT API] -->|cada 15m| Loader[Contenedor Loader]
-    Loader -->|.csv raw| Raw[(raw/)]
+    Loader -->|.parquet| Data[(data/)]
 ```
 
 Se conecta a [GDELT](https://www.gdeltproject.org/) y baja los siguientes archivos: Events table, Mentions table y GKG. Esto se debe hacer cada 15 minutos de forma continua, manteniendo únicamente los datos RAW del período que el equipo decida (por ejemplo, la última hora), dado el volumen de información que genera GDELT.
+Internamente el Loader también se encarga de transformar los archivos `.csv` descargados a `.parquet` antes de escribirlos a disco, eliminando la necesidad de un paso de transformación separado.
 > El encargado de esta área debe explicar su implementación.
 
-#### Transformer
-
-**Paso 2: + Transformer**
-
-```mermaid
-flowchart LR
-    GDELT[GDELT API] -->|cada 15m| Loader[Contenedor Loader]
-    Loader -->|.csv raw| Raw[(raw/)]
-    Raw --> Transformer[Transformer]
-    Transformer -->|.parquet| Data[(data/)]
-```
-
-No explícito dentro del documento; su necesidad reside en la facilidad que genera analizar archivos `.parquet` sobre `.csv` en Apache Spark.
-Se toman los archivos raw `.csv` descargados por el Loader y se convierten en archivos `.parquet`.
-Se recomienda organizarlos por carpetas para una mayor organización: que el directorio output del Loader sea un directorio llamado `raw`, el cual sirva como fuente de datos para el Transformer, y que este a su vez los transforme en `.parquet` y los guarde dentro de un directorio llamado `data`.
-Este directorio `data` tendrá los datos listos para que Spark los tome y haga análisis con ellos.
 #### Analisis 
 
-**Paso 3: + Spark (Analisis)**
+**Paso 2: + Spark (Analisis)**
 
 ```mermaid
 flowchart LR
     GDELT[GDELT API] -->|cada 15m| Loader[Contenedor Loader]
-    Loader -->|.csv raw| Raw[(raw/)]
-    Raw --> Transformer[Transformer]
-    Transformer -->|.parquet| Data[(data/)]
+    Loader -->|.parquet| Data[(data/)]
     Data --> SparkM[Spark Master]
     SparkM --> SparkW1[Spark Worker 1]
     SparkM --> SparkW2[Spark Worker 2]
@@ -99,14 +81,12 @@ Lista rapida pa no perderla (copiada del enunciado, falta mapear quien hace cual
 
 #### Loader a MongoDB
 
-**Paso 4: + MongoDB (Loader a Mongo)**
+**Paso 3: + MongoDB (Loader a Mongo)**
 
 ```mermaid
 flowchart LR
     GDELT[GDELT API] -->|cada 15m| Loader[Contenedor Loader]
-    Loader -->|.csv raw| Raw[(raw/)]
-    Raw --> Transformer[Transformer]
-    Transformer -->|.parquet| Data[(data/)]
+    Loader -->|.parquet| Data[(data/)]
     Data --> SparkM[Spark Master]
     SparkM --> SparkW1[Spark Worker 1]
     SparkM --> SparkW2[Spark Worker 2]
@@ -125,14 +105,12 @@ Pendiente:
 
 #### Capa de Presentacion
 
-**Paso 5: + Capa de Presentacion (pipeline completo)**
+**Paso 4: + Capa de Presentacion (pipeline completo)**
 
 ```mermaid
 flowchart LR
     GDELT[GDELT API] -->|cada 15m| Loader[Contenedor Loader]
-    Loader -->|.csv raw| Raw[(raw/)]
-    Raw --> Transformer[Transformer]
-    Transformer -->|.parquet| Data[(data/)]
+    Loader -->|.parquet| Data[(data/)]
     Data --> SparkM[Spark Master]
     SparkM --> SparkW1[Spark Worker 1]
     SparkM --> SparkW2[Spark Worker 2]
@@ -163,11 +141,10 @@ flowchart TB
 
     subgraph Pipeline[" "]
         direction LR
-        Loader[Loader] --> Transformer[Transformer] --> Spark["Spark<br/>(master + 2 workers)"] --> Mongo[(MongoDB)] --> Superset[Superset]
+        Loader[Loader] --> Spark["Spark<br/>(master + 2 workers)"] --> Mongo[(MongoDB)] --> Superset[Superset]
     end
 
     Airflow -.->|trigger / schedule| Loader
-    Airflow -.->|trigger / schedule| Transformer
     Airflow -.->|trigger / schedule| Spark
     Airflow -.->|trigger / schedule| Superset
 ```
