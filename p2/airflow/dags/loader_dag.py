@@ -2,7 +2,8 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from datetime import datetime
 
-from loader.stream_manager import loader, extractor, transformer
+from loader.stream_manager import main
+from loader.cleanup import borrar_parquets_raw
 
 def run_pipeline():
     for table, contenido in loader():
@@ -18,11 +19,11 @@ with DAG(
 ) as dag:
   descargar = PythonOperator(
         task_id="descargar",
-        python_callable=descargar_datos
+        python_callable=main
     )
 
     borrar = PythonOperator(
         task_id="borrar",
-        python_callable=eliminar_datos
+        python_callable=borrar_parquets_raw
     )
     descargar >> borrar
