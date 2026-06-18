@@ -1,5 +1,6 @@
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
+from pyspark.sql.window import Window
 
 spark = (
     SparkSession.builder
@@ -26,32 +27,53 @@ def guardar(df, coleccion):
     )
 
 # 1. Mapa de calor de intensidad de conflictos
-heatmap=(
+mapa=(
     events
     .filter(F.col("actiongeo_countrycode").isNotNull())
     .groupBy("sqldate","actiongeo_countrycode")
-    .agg(F.avg("goldsteinscale").alias("promedio_goldstein"))
+    .agg(F.avg("goldsteinscale").alias("promedio"))
 )
 
-guardar(heatmap, "heatmap_goldstein")
+guardar(mapa,"heatmap_goldstein")
 
 # 2. Top 10 países que generan más eventos
-top10=(
+top=(
     events
     .filter(F.col("actiongeo_countrycode").isNotNull())
-    .groupBy("sqldate","actiongeo_countrycode" )
-    .count()
+    .groupBy("sqldate","actiongeo_countrycode")
+    .agg(F.count("*").alias("total"))
 )
 
-guardar(top10, "top10_countries")
+w=Window.partitionBy("sqldate").orderBy(F.desc("total"))
+
+top=(
+    top
+    .withColumn("puesto",F.row_number().over(w))
+    .filter(F.col("puesto")<=10)
+)
+
+guardar(top,"top10_countries")
 
 # 3. Correlación AvgTone y número de fuentes
-corr=(
+corr = (
     events
-    .select("globaleventid","avgtone","numsources")
+    .select(
+        F.corr("avgtone", "numsources")
+        .alias("correlation")
+    )
+)
+
+corr_points = (
+    events
+    .select(
+        "globaleventid",
+        "avgtone",
+        "numsources"
+    )
 )
 
 guardar(corr, "avgtone_correlation")
+guardar(corr_points, "avgtone_correlation_points")
 
 # 4. Distribución de tipos CAMEO
 cameo=(
@@ -64,16 +86,16 @@ cameo=(
 guardar(cameo, "cameo_distribution")
 
 # 5. Matriz de interacción entre actores
-interacciones=(
+act=(
     events
     .groupBy("actor1type1code","actor2type1code")
     .count()
 )
 
-guardar(interacciones, "actor_interactions")
+guardar(act,"actor_interactions")
 
 # 6. Cobertura mediática por país
-cobertura=(
+cob=(
     events
     .filter(F.col("actiongeo_countrycode").isNotNull())
     .groupBy("actiongeo_countrycode")
@@ -86,27 +108,46 @@ cobertura=(
     )
 )
 
-guardar(cobertura, "media_coverage")
+guardar(cob,"media_coverage")
 
 # 7. Tendencia de sentimiento
-sentimiento = (
+tono=(
     events
     .filter(F.col("actiongeo_countrycode").isNotNull())
     .groupBy("sqldate","actiongeo_countrycode")
-    .agg(F.avg("avgtone").alias("avg_tone"))
+    .agg(
+        F.avg("avgtone")
+        .alias("promedio")
+    )
 )
 
-guardar(sentimiento, "sentiment_trends")
+w=(
+    Window
+    .partitionBy("actiongeo_countrycode")
+    .orderBy("sqldate")
+    .rowsBetween(-6,0)
+)
+
+tend=(
+    tono
+    .withColumn(
+        "movil",
+        F.avg("promedio").over(w)
+    )
+)
+
+guardar(tend,"sentiment_trends")
+
 
 # 8. Conflictos entre actores
-conflictos = (
+conf=(
     events
-    .filter(F.col("goldsteinscale") < 0)
+    .filter(F.col("goldsteinscale")<0)
     .groupBy("actor1countrycode","actor2countrycode")
     .count()
 )
 
-guardar(conflictos, "country_conflicts")
+guardar(conf,"country_conflicts")
 
 # 9. Escalada de eventos
 escalada=(
@@ -174,33 +215,83 @@ lag = (
 guardar(lag, "lag_analysis")
 
 # 14. Grafo diplomático vs conflictos
-grafo = (
+grafo=(
     events
-    .groupBy("actor1countrycode","actor2countrycode")
-    .agg(F.count("*").alias("peso"))
+    .filter(F.col("actor1countrycode").isNotNull())
+    .filter(F.col("actor2countrycode").isNotNull())
+    .withColumn(
+        "tipo",
+        F.when(
+            F.col("goldsteinscale")>=0,
+            "diplomatico"
+        ).otherwise(
+            "conflicto"
+        )
+    )
+    .groupBy(
+        "actor1countrycode",
+        "actor2countrycode",
+        "tipo"
+    )
+    .agg(
+        F.count("*")
+        .alias("peso")
+    )
 )
 
-guardar(grafo, "diplomatic_graph")
+guardar(grafo,"diplomatic_graph")
 
 # 15. Diversidad de fuentes por país
-fuentes = (
+fuen=(
     mentions
-    .join(events.select("globaleventid","actiongeo_countrycode"),"globaleventid")
+    .join(
+        events.select(
+            "globaleventid",
+            "actiongeo_countrycode"
+        ),
+        "globaleventid"
+    )
     .filter(F.col("actiongeo_countrycode").isNotNull())
     .groupBy("actiongeo_countrycode")
-    .agg(F.countDistinct("mentionsourcename").alias("fuentes_distintas"))
+    .agg(
+        F.countDistinct(
+            "mentionsourcename"
+        ).alias("cantidad")
+    )
 )
 
-guardar(fuentes, "source_diversity")
+guardar(fuen,"source_diversity")
 
 # 16. Frecuencia de conflictos por etnia
-etnias = (
+et1=(
     events
-    .groupBy("actor1ethniccode")
-    .count()
+    .filter(F.col("goldsteinscale")<0)
+    .filter(F.col("actor1ethniccode").isNotNull())
+    .select(
+        F.col("actor1ethniccode")
+        .alias("etnia")
+    )
 )
 
-guardar(etnias, "ethnic_conflicts")
+et2=(
+    events
+    .filter(F.col("goldsteinscale")<0)
+    .filter(F.col("actor2ethniccode").isNotNull())
+    .select(
+        F.col("actor2ethniccode")
+        .alias("etnia")
+    )
+)
+
+etnias=(
+    et1
+    .union(et2)
+    .groupBy("etnia")
+    .count()
+    .orderBy(F.desc("count"))
+)
+
+guardar(etnias,"ethnic_conflicts")
 
 # 17. Noticias de última hora
 breaking = (
@@ -235,5 +326,5 @@ cooperativos = (
 )
 
 guardar(cooperativos, "extra_analysis_2")
-d
+
 spark.stop()
