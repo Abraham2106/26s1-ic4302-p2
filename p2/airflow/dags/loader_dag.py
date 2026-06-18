@@ -5,11 +5,6 @@ from datetime import datetime
 from loader.stream_manager import main
 from loader.cleanup import borrar_parquets_raw
 
-def run_pipeline():
-    for table, contenido in loader():
-        df = extractor(table, contenido)
-        transformer(table, df)
-
 with DAG(
     dag_id="descargar",
     schedule="*/15 * * * *",
