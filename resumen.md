@@ -53,7 +53,6 @@ flowchart LR
 
 Ya con los datos, se debe de hacer el analisis, usando Spark leyendo los archivos Parquet.
 > Nota: En este punto me di cuenta que Airflow es un most, es el `trigger` de Spark 
-> El encargado de esta área debe explicar su implementación.
 
 Son 17 analisis pedidos en el enunciado + 2 que nosotros agreguemos (TODO: decidir cuales 2).
 
@@ -78,6 +77,27 @@ Lista rapida pa no perderla (copiada del enunciado, falta mapear quien hace cual
 - + 2 propios (pendiente)
 
 > El encargado de esta área debe explicar su implementación (osea, como Spark lee de Parquet, que transformaciones le hace a cada uno, y como calcula cada metrica).
+>
+    **Cómo Spark lee datos de Parquet**
+
+Se debe entender que Spark nunca escribe datos "crudos" sino que solo escribe resultados de análisis
+
+Cada análsiis está como un archivo `.py` separado dentro de la carpeta `jobs/`.
+
+`df = spark.read.parquet(f"{DATA_PATH}/{table}.parquet")`
+
+Como Parquet es de formato columnar (a diferencia de CSV), se guarda cada columna por separado y comprimida. Cuando Spark lee un Parquet no "infiere" el schema (los tipos de datos) como CSV sino que ya guarda el schema embebido en el archivo y eso hace que Spark le sea mucho más fácil leer.
+
+Entonces: spark.read.parquet(...) no carga los datos en memoria todavía. Los datos físicamente se leen
+con .show() o .count().
+
+Básicamente, en resumen, Spark hace esto:
+1. Leer (spark.read.parquet)
+2. Transformar (filter, groupBy, join, explode, Window) (nunca tocan datos hasta acción las dispara]
+3. Actuar (.show(), count()).
+
+
+
 
 #### Loader a MongoDB
 
