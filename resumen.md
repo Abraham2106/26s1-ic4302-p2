@@ -76,25 +76,54 @@ Lista rapida pa no perderla (copiada del enunciado, falta mapear quien hace cual
 - Deteccion de breaking news (0 a 100+ menciones en <1h)
 - + 2 propios (pendiente)
 
-> El encargado de esta área debe explicar su implementación (osea, como Spark lee de Parquet, que transformaciones le hace a cada uno, y como calcula cada metrica).
-
 **Cómo Spark lee datos de Parquet**
 
-Se debe entender que Spark nunca escribe datos "crudos" sino que solo escribe resultados de análisis
+Spark nunca escribe datos a como vienen sino que solo escribe resultados de los análisis que hizo.
 
 Cada análsiis está como un archivo `.py` separado dentro de la carpeta `jobs/`.
 
 `df = spark.read.parquet(f"{DATA_PATH}/{table}.parquet")`
 
-Como Parquet es de formato columnar (a diferencia de CSV), se guarda cada columna por separado y comprimida. Cuando Spark lee un Parquet no "infiere" el schema (los tipos de datos) como CSV sino que ya guarda el schema embebido en el archivo y eso hace que Spark le sea mucho más fácil leer.
+Como Parquet es de formato columnar (a diferencia de CSV) entonces en vez de guardar los datos fila por fila, los guarda columna por columna. Parquet ya trae "tageado" qué tipo de dato es cada columna ( número, texto, fecha, etc)  dentro del mismo archivo y así Spark no tiene que adivinar.
 
-Entonces: spark.read.parquet(...) no carga los datos en memoria todavía. Los datos físicamente se leen
+Entonces: spark.read.parquet(...) Spark no lee nada todavía.. Espera el resultado de verdad como
 con .show() o .count().
 
 Básicamente, en resumen, Spark hace esto:
 1. Leer (spark.read.parquet)
 2. Transformar (filter, groupBy, join, explode, Window) (nunca tocan datos hasta acción las dispara]
 3. Actuar (.show(), count()).
+
+**Qué hace cada métrica**
+
+- Mapa de calor de intensidad de conflictos por pais por dia (escala Goldstein)
+- Top 10 paises que generan mas eventos noticiosos por dia
+
+`events.groupBy("actor1countrycode").agg(F.count("*").alias("total_events")).orderBy(F.desc("total_events")).limit(10)`
+
++ `groupBy("actor1countrycode")` agrupa todas las filas que comparten el mismo país.
++ `.agg(F.count("*"))` cuenta cuántas filas cayeron en cada grupo.
++ `.orderBy(F.desc(...))` ordena los grupos resultantes de mayor a menor.
++ `.limit(10)` se queda con los primeros 10.
+
+- Correlacion AvgTone vs numero de fuentes
+
+- Distribucion de tipos de eventos CAMEO por region
+- Matriz de interaccion entre tipos de actores (gob vs militar vs rebeldes)
+- Paises con mayor cobertura mediatica por evento
+- Tendencia de sentimiento por pais en el tiempo (promedio movil AvgTone)
+- Pares de paises que mas entran en conflicto
+- Deteccion de escalada de eventos (aumento acelerado de menciones en 24h)
+- Agrupamiento de eventos de conflicto por religion por region
+- Principales temas del GKG por continente por año
+- Organizaciones mas mencionadas globalmente por dia
+- Analisis de rezago: tono de hoy predice conflicto de mañana?
+- Grafo de red diplomacia vs conflictos entre paises
+- Indice de diversidad de fuentes por pais
+- Frecuencia de conflictos por etnia de los actores
+- Deteccion de breaking news (0 a 100+ menciones en <1h)
+
+  
 
 
 
