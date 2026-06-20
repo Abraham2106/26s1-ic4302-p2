@@ -77,8 +77,8 @@ Lista rapida pa no perderla (copiada del enunciado, falta mapear quien hace cual
 - + 2 propios (pendiente)
 
 > El encargado de esta área debe explicar su implementación (osea, como Spark lee de Parquet, que transformaciones le hace a cada uno, y como calcula cada metrica).
->
-    **Cómo Spark lee datos de Parquet**
+
+**Cómo Spark lee datos de Parquet**
 
 Se debe entender que Spark nunca escribe datos "crudos" sino que solo escribe resultados de análisis
 
