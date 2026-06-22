@@ -1,8 +1,8 @@
 # Modelo mongoDB
-La base de datos de mongoddb se llama gdelt esta se utiliza unicamente para almacenar los resultados ya procesados. Los datos crudos provenientes de GDELT se mantienen en archivos Parquet para no ser innsertados en MongoDB.
+La base de datos usada para el pipeline es MongoDB, esta se utiliza unicamente para almacenar los resultados una vez son procesados. Los datos crudos provenientes de GDELT se mantienen en archivos Parquet durante una hora, pero no son insertados en MongoDB.
 
 ## Colecciones 
-Se tiene una coleccion por analisis para poder consultar directamente los resutados sin procesar crudes.
+Se tiene una colección por analisis para poder consultar directamente los resutados sin procesar archivos crudos.
 
 1. heatmap_conflictos
     - _id       ObjectID    
