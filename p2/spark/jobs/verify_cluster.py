@@ -6,18 +6,23 @@ spark = (
     .master("spark://spark-master:7077")
     .getOrCreate()
 )
-spark.sparkContext.setLogLevel("WARN")
 
-DATA_PATH = "/opt/spark-data"
-TABLES = ["events", "mentions", "gkg"]
+spark.sparkContext.setLogLevel("ERROR")
 
-for table in TABLES:
-    path = f"{DATA_PATH}/{table}.parquet"
+paths = {
+    "events": "/opt/spark-data/events.parquet",
+    "mentions": "/opt/spark-data/mentions.parquet",
+    "gkg": "/opt/spark-data/gkg.parquet",
+}
+
+for name, path in paths.items():
+    print(f"\n===== {name.upper()} =====")
     df = spark.read.parquet(path)
-    print(f"\n{'='*50}")
-    print(f"TABLE: {table.upper()}")
-    print(f"Rows : {df.count()}")
-    print(f"Cols : {len(df.columns)}")
+    print("Filas:", df.count())
+    print("Columnas:", df.columns)
     df.printSchema()
+    if name == "events":
+        print("\nCODIGOS DE PAIS:")
+        df.select("actiongeo_countrycode").distinct().show(100, truncate=False)
 
 spark.stop()

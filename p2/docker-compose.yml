@@ -20,7 +20,7 @@ x-airflow-common: &airflow-common
     AIRFLOW_CONN_DOCKER_DEFAULT: "docker://"
     # Variables de entorno por si las usan dentro de los DAGs
     SPARK_MASTER_URL: spark://spark-master:7077
-    MONGO_URI: mongodb://mongo:27017
+    MONGO_URI: mongodb://admin:admin123@mongodb:27017/gdelt?authSource=admin
   volumes:
     - ./airflow/dags:/opt/airflow/dags
     - ./airflow/logs:/opt/airflow/logs
@@ -28,16 +28,18 @@ x-airflow-common: &airflow-common
     - ./:/opt/airflow/project
     - ./loader:/opt/airflow/dags/loader
     - ./raw:/opt/airflow/raw
+    - ./spark/jobs:/opt/spark-jobs
     # Monta el socket de Docker del host para que DockerOperator pueda
     # levantar/controlar contenedores hermanos (Loader, Transformer, etc)
-    - /var/run/docker.sock:/var/run/docker.sock
+    - /var/run/docker.sock:/var/run/docker.sock 
   user: "${AIRFLOW_UID:-50000}:0"
   group_add:
     - "${DOCKER_GID:-999}"
   depends_on:
     airflow-postgres:
       condition: service_healthy
- 
+  networks:
+    - spark-net
 
 
 services:
@@ -54,7 +56,7 @@ services:
       - "7077:7077"
       - "4040:4040"
     volumes:
-      - ./data:/opt/spark-data:ro
+      - ./raw:/opt/spark-data:ro
       - ./spark/jobs:/opt/spark-jobs:ro
     networks:
       - spark-net
@@ -70,7 +72,7 @@ services:
       - SPARK_WORKER_MEMORY=1g
       - SPARK_WORKER_CORES=1
     volumes:
-      - ./data:/opt/spark-data:ro
+      - ./raw:/opt/spark-data:ro
       - ./spark/jobs:/opt/spark-jobs:ro
     depends_on:
       - spark-master
@@ -88,7 +90,7 @@ services:
       - SPARK_WORKER_MEMORY=1g
       - SPARK_WORKER_CORES=1
     volumes:
-      - ./data:/opt/spark-data:ro
+      - ./raw:/opt/spark-data:ro
       - ./spark/jobs:/opt/spark-jobs:ro
     depends_on:
       - spark-master
@@ -121,6 +123,8 @@ services:
       test: ["CMD", "pg_isready", "-U", "airflow"]
       interval: 5s
       retries: 5
+    networks:
+      - spark-net
  
   airflow-init:
     <<: *airflow-common
