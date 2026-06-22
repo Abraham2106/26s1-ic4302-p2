@@ -31,10 +31,10 @@ x-airflow-common: &airflow-common
     - ./spark/jobs:/opt/spark-jobs
     # Monta el socket de Docker del host para que DockerOperator pueda
     # levantar/controlar contenedores hermanos (Loader, Transformer, etc)
-    - /var/run/docker.sock:/var/run/docker.sock 
+    - /var/run/docker.sock:/var/run/docker.sock
   user: "${AIRFLOW_UID:-50000}:0"
   group_add:
-    - "${DOCKER_GID:-999}"
+    - "1001"
   depends_on:
     airflow-postgres:
       condition: service_healthy
@@ -57,6 +57,7 @@ services:
       - "4040:4040"
     volumes:
       - ./raw:/opt/spark-data:ro
+      - ./data:/opt/spark-static:ro
       - ./spark/jobs:/opt/spark-jobs:ro
     networks:
       - spark-net
@@ -73,6 +74,7 @@ services:
       - SPARK_WORKER_CORES=1
     volumes:
       - ./raw:/opt/spark-data:ro
+      - ./data:/opt/spark-static:ro
       - ./spark/jobs:/opt/spark-jobs:ro
     depends_on:
       - spark-master
@@ -91,6 +93,7 @@ services:
       - SPARK_WORKER_CORES=1
     volumes:
       - ./raw:/opt/spark-data:ro
+      - ./data:/opt/spark-static:ro
       - ./spark/jobs:/opt/spark-jobs:ro
     depends_on:
       - spark-master
@@ -165,7 +168,38 @@ services:
     depends_on:
       airflow-init:
         condition: service_completed_successfully
- 
+
+  # ─────────────── Trino (puente SQL para MongoDB) ───────────────
+  trino-coordinator:
+    image: trinodb/trino:latest
+    container_name: trino-coordinator
+    ports:
+      - "8090:8080"
+    volumes:
+      - ./trino/etc:/etc/trino
+      - ./trino/catalog:/etc/trino/catalog
+    depends_on:
+      - mongodb
+    networks:
+      - spark-net
+
+  # ─────────────── Superset (visualización) ───────────────
+  superset:
+    build:
+      context: ./superset
+    image: p2-superset:latest
+    container_name: superset
+    ports:
+      - "8088:8088"
+    environment:
+      SUPERSET_CONFIG_PATH: /app/superset_config.py
+    volumes:
+      - ./superset/superset_config.py:/app/superset_config.py
+      - ./superset_home:/app/superset_home
+    depends_on:
+      - trino-coordinator
+    networks:
+      - spark-net
 
 networks:
   spark-net:

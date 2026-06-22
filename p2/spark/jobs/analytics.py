@@ -87,7 +87,7 @@ guardar(corr, "correlacion_avgtone_fuentes")
 regiones = (
     spark.read
     .option("header", True)
-    .csv("/opt/spark-data/country_regions.csv")
+    .csv("/opt/spark-static/country_regions.csv")
 )
 
 cameo_region = (
@@ -184,20 +184,30 @@ guardar(escalada_eventos, "escalada_eventos_1h")
 # 10. Eventos basados en religión
 religion_actor1 = (
     events
-    .filter(F.col("goldsteinscale").isNotNull())
-    .filter(F.col("goldsteinscale") < 0)
+    .withColumn("goldstein_num", F.expr("try_cast(goldsteinscale as double)"))
+    .filter(F.col("goldstein_num").isNotNull())
+    .filter(F.col("goldstein_num") < 0)
     .filter(F.col("actiongeo_countrycode").isNotNull())
     .filter(F.col("actor1religion1code").isNotNull())
-    .select(F.col("actiongeo_countrycode").alias("country_code"), F.col("actor1religion1code").alias("religion"),F.col("goldsteinscale"))
+    .select(
+        F.col("actiongeo_countrycode").alias("country_code"),
+        F.col("actor1religion1code").alias("religion"),
+        F.col("goldstein_num").alias("goldsteinscale")
+    )
 )
 
 religion_actor2 = (
     events
-    .filter(F.col("goldsteinscale").isNotNull())
-    .filter(F.col("goldsteinscale") < 0)
+    .withColumn("goldstein_num", F.expr("try_cast(goldsteinscale as double)"))
+    .filter(F.col("goldstein_num").isNotNull())
+    .filter(F.col("goldstein_num") < 0)
     .filter(F.col("actiongeo_countrycode").isNotNull())
     .filter(F.col("actor2religion1code").isNotNull())
-    .select( F.col("actiongeo_countrycode").alias("country_code"), F.col("actor2religion1code").alias("religion"), F.col("goldsteinscale"))
+    .select(
+        F.col("actiongeo_countrycode").alias("country_code"),
+        F.col("actor2religion1code").alias("religion"),
+        F.col("goldstein_num").alias("goldsteinscale")
+    )
 )
 
 religion_conflictos = religion_actor1.unionByName(religion_actor2)
