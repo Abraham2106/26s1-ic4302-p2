@@ -1,6 +1,5 @@
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from airflow.operators.bash import BashOperator
 from datetime import datetime
 
 from loader.stream_manager import main
@@ -19,20 +18,9 @@ with DAG(
         python_callable=main
     )
 
-    ejecutar_analytics = BashOperator(
-        task_id="ejecutar_analytics",
-        bash_command="""
-        docker exec spark-master /opt/spark/bin/spark-submit \
-          --master spark://spark-master:7077 \
-          --conf spark.jars.ivy=/tmp/ivy \
-          --packages org.mongodb.spark:mongo-spark-connector_2.13:10.5.0 \
-          /opt/spark-jobs/analytics.py
-        """
-    )
-
     limpiar_raw = PythonOperator(
         task_id="limpiar_raw_viejo",
         python_callable=borrar_parquets_raw
     )
 
-    descargar >> ejecutar_analytics >> limpiar_raw
+    descargar >> limpiar_raw
