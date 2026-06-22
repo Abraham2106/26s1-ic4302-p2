@@ -31,7 +31,7 @@ x-airflow-common: &airflow-common
     - ./spark/jobs:/opt/spark-jobs
     # Monta el socket de Docker del host para que DockerOperator pueda
     # levantar/controlar contenedores hermanos (Loader, Transformer, etc)
-    - /var/run/docker.sock:/var/run/docker.sock 
+    - /var/run/docker.sock:/var/run/docker.sock
   user: "${AIRFLOW_UID:-50000}:0"
   group_add:
     - "1001"
@@ -169,11 +169,12 @@ services:
       airflow-init:
         condition: service_completed_successfully
 
+  # ─────────────── Trino (puente SQL para MongoDB) ───────────────
   trino-coordinator:
     image: trinodb/trino:latest
     container_name: trino-coordinator
     ports:
-      - "8090:8080"      # Web UI + query endpoint (8080 ocupado por Airflow)
+      - "8090:8080"
     volumes:
       - ./trino/etc:/etc/trino
       - ./trino/catalog:/etc/trino/catalog
@@ -182,6 +183,7 @@ services:
     networks:
       - spark-net
 
+  # ─────────────── Superset (visualización) ───────────────
   superset:
     build:
       context: ./superset
@@ -193,7 +195,7 @@ services:
       SUPERSET_CONFIG_PATH: /app/superset_config.py
     volumes:
       - ./superset/superset_config.py:/app/superset_config.py
-      - superset-data:/app/superset_home
+      - ./superset_home:/app/superset_home
     depends_on:
       - trino-coordinator
     networks:
@@ -206,4 +208,3 @@ networks:
 volumes:
   mongo-data:
   airflow-postgres-data:
-  superset-data:
