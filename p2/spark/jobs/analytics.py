@@ -87,7 +87,7 @@ guardar(corr, "correlacion_avgtone_fuentes")
 regiones = (
     spark.read
     .option("header", True)
-    .csv("/opt/spark-data/country_regions.csv")
+    .csv("/opt/spark-static/country_regions.csv")
 )
 
 cameo_region = (
