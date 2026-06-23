@@ -15,7 +15,7 @@ def loader() -> list[tuple[str, bytes]]:
     for linea in texto_indice.text.splitlines():
         peso, codigo, enlace = linea.split()
         enlace_lower = enlace.lower()
-        table = "events" if ".export." in enlace_lower else next((t for t in TABLES if t in enlace_lower), None)
+        table = "events"+codigo if ".export." in enlace_lower else next((t for t in TABLES if t in enlace_lower), None)
         if not table:
             continue
         archivo = requests.get(enlace)
