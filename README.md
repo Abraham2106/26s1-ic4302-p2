@@ -10,10 +10,10 @@
 
 Resumen general
 ---
-El equipo consiste en montar un pipeline de análisis de datos, este debe correr en contenedores.
-Las partes básicas de la tarea son un loader de datos, un análisis con Spark y por último una capa de presentación que usa MongoDB como Base de Datos.
-Como flujo básico van a necesitar un Contendor para el loader, más los Contenedores de Spark, además, el contenedor de Mongo y de la capa de Presentación.
-Herramientas que pueden usar, Apache Airflow para el pipeline, Apache Parquet/HDFS para guardar los archivos del loader, Apache Superset para la capa de presentación.
+El equipo consiste en montar un pipeline de análisis de datos y correr en contenedores.
+Las partes básicas de la tarea son un loader de datos con Apache Parquet, un análisis con Spark y por último una capa de presentación en Apache Superset que usa MongoDB como Base de Datos.
+Como flujo básico se cuenta con un Contendor para el loader, los Contenedores de Spark, además, el contenedor de MongoDB y de la capa de Presentación Apache Superset.
+
 
 
 Equipo
@@ -130,33 +130,25 @@ En resumen, Spark realiza esto:
 
 **Qué hace cada métrica**
 
-- Mapa de calor de intensidad de conflictos por pais por dia (escala Goldstein)
-- Top 10 paises que generan mas eventos noticiosos por dia
-
-`events.groupBy("actor1countrycode").agg(F.count("*").alias("total_events")).orderBy(F.desc("total_events")).limit(10)`
-
-+ `groupBy("actor1countrycode")` agrupa todas las filas que comparten el mismo país.
-+ `.agg(F.count("*"))` cuenta cuántas filas cayeron en cada grupo.
-+ `.orderBy(F.desc(...))` ordena los grupos resultantes de mayor a menor.
-+ `.limit(10)` se queda con los primeros 10.
-
-- Correlacion AvgTone vs numero de fuentes
-
-- Distribucion de tipos de eventos CAMEO por region
-- Matriz de interaccion entre tipos de actores (gob vs militar vs rebeldes)
-- Paises con mayor cobertura mediatica por evento
-- Tendencia de sentimiento por pais en el tiempo (promedio movil AvgTone)
-- Pares de paises que mas entran en conflicto
-- Deteccion de escalada de eventos (aumento acelerado de menciones en 24h)
-- Agrupamiento de eventos de conflicto por religion por region
-- Principales temas del GKG por continente por año
-- Organizaciones mas mencionadas globalmente por dia
-- Analisis de rezago: tono de hoy predice conflicto de mañana?
-- Grafo de red diplomacia vs conflictos entre paises
-- Indice de diversidad de fuentes por pais
-- Frecuencia de conflictos por etnia de los actores
-- Deteccion de breaking news (0 a 100+ menciones en <1h)
-
+1. Mapa de calor de intensidad de conflictos por pais por dia (escala Goldstein)
+2. Top 10 paises que generan mas eventos noticiosos por dia
+3. Correlacion AvgTone vs numero de fuentes
+4. Distribucion de tipos de eventos CAMEO por region
+5. Matriz de interaccion entre tipos de actores (gob vs militar vs rebeldes)
+6. Paises con mayor cobertura mediatica por evento
+7. Tendencia de sentimiento por pais en el tiempo (promedio movil AvgTone)
+8. Pares de paises que mas entran en conflicto
+9. Deteccion de escalada de eventos (aumento acelerado de menciones en 24h)
+10. Agrupamiento de eventos de conflicto por religion por region
+11. Principales temas del GKG por continente por año
+12. Organizaciones mas mencionadas globalmente por dia
+13. Analisis de rezago: tono de hoy predice conflicto de mañana?
+14. Grafo de red diplomacia vs conflictos entre paises
+15. Indice de diversidad de fuentes por pais
+16. Frecuencia de conflictos por etnia de los actores
+17. Deteccion de breaking news (0 a 100+ menciones en <1h)
+EXTRA 1. Distribución de eventos positivos y negativos
+EXTRA 2. Top 10 países menos noticiosos
 
 #### Loader a MongoDB
 
