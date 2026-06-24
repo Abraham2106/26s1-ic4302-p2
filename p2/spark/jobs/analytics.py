@@ -169,7 +169,7 @@ conflictos_paises = (
 guardar(conflictos_paises, "conflictos_pares_paises")
 
 # 9. Escalada de eventos
-escalada_eventos = (
+menciones_hora = (
     mentions
     .filter(F.col("globaleventid").isNotNull())
     .filter(F.col("mentiontimedate").isNotNull())
@@ -179,11 +179,26 @@ escalada_eventos = (
     )
     .withColumn("hora", F.date_trunc("hour", F.col("timestamp_mencion")))
     .groupBy("globaleventid", "hora")
-    .agg(F.count("*").alias("menciones_en_hora"))
-    .orderBy(F.desc("menciones_en_hora"))
+    .agg(F.count("*").alias("menciones_hora"))
 )
 
-guardar(escalada_eventos, "escalada_eventos_1h")
+ventana_24h = (
+    Window
+    .partitionBy("globaleventid")
+    .orderBy("hora")
+    .rowsBetween(-23, 0)
+)
+
+escalada_eventos = (
+    menciones_hora
+    .withColumn(
+        "menciones_24h",
+        F.sum("menciones_hora").over(ventana_24h)
+    )
+    .orderBy(F.desc("menciones_24h"))
+)
+
+guardar(escalada_eventos, "escalada_eventos_24h")
 
 # 10. Eventos basados en religión
 religion_actor1 = (
@@ -409,7 +424,7 @@ breaking_news = (
     menciones_por_evento_hora
     .withColumn("menciones_hora_anterior",F.coalesce(F.lag("menciones_en_hora").over(w_breaking),F.lit(0)))
     .filter(F.col("menciones_hora_anterior") == 0)
-    .filter(F.col("menciones_en_hora") > 100)
+    .filter(F.col("menciones_en_hora") >= 1)
     .orderBy(F.desc("menciones_en_hora"))
 )
 
