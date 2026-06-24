@@ -103,7 +103,11 @@ cameo_region = (
 guardar(cameo_region, "cameo_region_mundo")
 
 # 5. Matriz de interacción entre actores
-tipos_actores = ["GOV", "MIL", "REB"]
+tipos_actores = [
+    "GOV", "MIL", "REB",
+    "OPP", "COP", "MED",
+    "BUS", "CVL", "NGO"
+]
 
 matriz_actores = (
     events
