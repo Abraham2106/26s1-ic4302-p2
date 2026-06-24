@@ -92,44 +92,6 @@ Ya con los datos, se debe de hacer el analisis, usando Spark leyendo los archivo
 > Nota del equipo: En este punto un miembro se dio cuenta que Airflow es un most, es el `trigger` de Spark 
 
 **17 consultas a analizar**
-- Mapa de calor de intensidad de conflictos por pais por dia (escala Goldstein)
-- Top 10 paises que generan mas eventos noticiosos por dia
-- Correlacion AvgTone vs numero de fuentes
-- Distribucion de tipos de eventos CAMEO por region
-- Matriz de interaccion entre tipos de actores (gob vs militar vs rebeldes)
-- Paises con mayor cobertura mediatica por evento
-- Tendencia de sentimiento por pais en el tiempo (promedio movil AvgTone)
-- Pares de paises que mas entran en conflicto
-- Deteccion de escalada de eventos (aumento acelerado de menciones en 24h)
-- Agrupamiento de eventos de conflicto por religion por region
-- Principales temas del GKG por continente por año
-- Organizaciones mas mencionadas globalmente por dia
-- Analisis de rezago: tono de hoy predice conflicto de mañana?
-- Grafo de red diplomacia vs conflictos entre paises
-- Indice de diversidad de fuentes por pais
-- Frecuencia de conflictos por etnia de los actores
-- Deteccion de breaking news (0 a 100+ menciones en <1h)
-- + 2 propios (pendiente)
-
-**Cómo Spark lee datos de Parquet**
-
-Spark nunca escribe datos a como vienen sino que solo escribe resultados de los análisis que hizo.
-
-Cada análsiis está como un archivo `.py` separado dentro de la carpeta `jobs/`.
-
-`df = spark.read.parquet(f"{DATA_PATH}/{table}.parquet")`
-
-Como Parquet es de formato columnar (a diferencia de CSV) entonces en vez de guardar los datos fila por fila, los guarda columna por columna. Parquet ya trae "tageado" qué tipo de dato es cada columna ( número, texto, fecha, etc)  dentro del mismo archivo y así Spark no tiene que adivinar.
-
-Entonces: spark.read.parquet(...) Spark no lee nada todavía. Espera el resultado de verdad como con .show() o .count().
-
-En resumen, Spark realiza esto:
-1. Leer (spark.read.parquet)
-2. Transformar (filter, groupBy, join, explode, Window) (nunca tocan datos hasta acción las dispara]
-3. Actuar (.show(), count()).
-
-**Qué hace cada métrica**
-
 1. Mapa de calor de intensidad de conflictos por pais por dia (escala Goldstein)
 2. Top 10 paises que generan mas eventos noticiosos por dia
 3. Correlacion AvgTone vs numero de fuentes
@@ -147,8 +109,25 @@ En resumen, Spark realiza esto:
 15. Indice de diversidad de fuentes por pais
 16. Frecuencia de conflictos por etnia de los actores
 17. Deteccion de breaking news (0 a 100+ menciones en <1h)
-EXTRA 1. Distribución de eventos positivos y negativos
-EXTRA 2. Top 10 países menos noticiosos
+18. EXTRA 1. Distribución de eventos positivos y negativos
+19. EXTRA 2. Top 10 países menos noticiosos
+
+**Cómo Spark lee datos de Parquet**
+
+Spark nunca escribe datos a como vienen sino que solo escribe resultados de los análisis que hizo.
+
+Cada análsiis está como un archivo `.py` separado dentro de la carpeta `jobs/`.
+
+`df = spark.read.parquet(f"{DATA_PATH}/{table}.parquet")`
+
+Como Parquet es de formato columnar (a diferencia de CSV) entonces en vez de guardar los datos fila por fila, los guarda columna por columna. Parquet ya trae "tageado" qué tipo de dato es cada columna ( número, texto, fecha, etc)  dentro del mismo archivo y así Spark no tiene que adivinar.
+
+Entonces: spark.read.parquet(...) Spark no lee nada todavía. Espera el resultado de verdad como con .show() o .count().
+
+En resumen, Spark realiza esto:
+1. Leer (spark.read.parquet)
+2. Transformar (filter, groupBy, join, explode, Window) (nunca tocan datos hasta acción las dispara]
+3. Actuar (.show(), count()).
 
 #### Loader a MongoDB
 
