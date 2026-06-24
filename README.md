@@ -1,15 +1,42 @@
-# Resumen de la arquitectura actual
+# Análisis de Eventos Mundiales: Pipeline con datos de GDELT
+
+![Apache Superset](https://img.shields.io/badge/Apache%20Superset-E65300?style=for-the-badge&logo=apache&logoColor=white)
+![GDELT Project](https://img.shields.io/badge/GDELT%20Project-1E3A5F?style=for-the-badge&logo=google&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-00ED64?style=for-the-badge&logo=mongodb&logoColor=white)
+![Apache Spark](https://img.shields.io/badge/Apache%20Spark-E25A1C?style=for-the-badge&logo=apachespark&logoColor=white)
+![Apache Parquet](https://img.shields.io/badge/Apache%20Parquet-2C5F7C?style=for-the-badge&logo=apache&logoColor=white)
+![Apache Airflow](https://img.shields.io/badge/Apache%20Airflow-017CEE?style=for-the-badge&logo=apacheairflow&logoColor=white)
+[![TEC](https://img.shields.io/badge/TEC-002855?style=for-the-badge&logo=book&logoColor=white)](https://www.tec.ac.cr/)
+
+Resumen general
 ---
-Authors:
-* Abraham Solano
+El equipo consiste en montar un pipeline de análisis de datos, este debe correr en contenedores.
+Las partes básicas de la tarea son un loader de datos, un análisis con Spark y por último una capa de presentación que usa MongoDB como Base de Datos.
+Como flujo básico van a necesitar un Contendor para el loader, más los Contenedores de Spark, además, el contenedor de Mongo y de la capa de Presentación.
+Herramientas que pueden usar, Apache Airflow para el pipeline, Apache Parquet/HDFS para guardar los archivos del loader, Apache Superset para la capa de presentación.
+
+
+Equipo
 ---
-## Explicación General de la Arquitectura
-### Objetivo del proyecto
-En pocas palabras consiste en montar un pipeline de análisis de datos, en contenedores.
++ Abraham Gerardo Solano Parrales 🐐
+  
++ Sofia Elena Barrantes Miranda
+  
++ Daniel Josué Herrera Córdoba
+  
++ Kevin David Jiménez Escalante
+  
+
+Arquitectura del proyecto
+---
+
+### Propuesta
+
 La arquitectura que se propone para el proyecto es la siguiente:
 * Loader de Datos
 * Análisis de Spark
 * Capa de presentación (con MongoDB como base de datos)
+  
 **Capas que no fueron agregadas en la visión original**
 * Loader de Datos (incluye transformación de `.csv` a `.parquet`)
 * Análisis de Spark
@@ -21,9 +48,19 @@ Siguiendo con la visión del proyecto se sugiere el uso de los siguientes conten
 * Contenedor de Mongo
 * Contenedor de Capa de Presentación (Apache Superset)
 > [!NOTE]
-> Se valora utilizar Apache Airflow para el pipeline
+> Se valoró utilizar Apache Airflow para el pipeline
 
-### Funcionamiento de cada etapa
+    Un módulo se encarga de descargar archivos de GDELT usando el archivo índice en la URL "http://data.gdeltproject.org/gdeltv2/lastupdate.txt". Primero se descarga este archivo y los archivos comprimidos a los que apunta, después se extraen los datos relevantes en un dataframe y por último se transforman en archivos parquet que se guardan en un directorio durante una hora antes de ser borrados.
+
+	Los datos son procesados utilizando Apache Spark, se utiliza esta herramienta porque es un sistema distribuido que ayuda a repartir el trabajo, resultando en mayor eficiencia para procesar grandes flujos de datos. Para este módulo se usa un mini-cluster de 3 nodos, un maestro que se encarga de coordinar a los otros nodos y dos que analizan los datos. De este análisis de datos van a salir los resultados a las 17 consultas solicitadas más las 2 consultas propias.
+    
+	De todos los datos creados y procesados, únicamente los resultados de las 19 consultas se van a guardar en MongoDB, los archivos parquet se guardan en un directorio temporalmente y las estructuras intermedias se crean y borran en memoria automáticamente. En la siguiente sección de la documentación se entra más en detalle respecto a la base de datos.
+    
+	Todos estos módulos son orquestados usando Apache Airflow, esta herramienta fué seleccionada puesto que tiene varias ventajas: tiene características resistente a fallos, si algo sale mal, reintenta la operación para prevenir que todo el contenedor deje de funcionar; tiene una interfaz gráfica intuitiva para monitorear el flujo de trabajo; trabaja exclusivamente en python, lo que simplifica su programación y tiene una arquitectura modular que brinda una buena escalabilidad. El módulo de Airflow se divide en varios Grafos acíclicos dirigidos (DAGs por sus siglas in inglés) y consiste en una para cada sección del pipeline, uno para el loader, otro para Spark y otro para mongoDB.
+
+
+
+## Funcionamiento de cada etapa
 
 #### Loader
 **Paso 1: Loader**
@@ -52,11 +89,9 @@ flowchart LR
 ```
 
 Ya con los datos, se debe de hacer el analisis, usando Spark leyendo los archivos Parquet.
-> Nota: En este punto me di cuenta que Airflow es un most, es el `trigger` de Spark 
+> Nota del equipo: En este punto un miembro se dio cuenta que Airflow es un most, es el `trigger` de Spark 
 
-Son 17 analisis pedidos en el enunciado + 2 que nosotros agreguemos (TODO: decidir cuales 2).
-
-Lista rapida pa no perderla (copiada del enunciado, falta mapear quien hace cual):
+**17 consultas a analizar**
 - Mapa de calor de intensidad de conflictos por pais por dia (escala Goldstein)
 - Top 10 paises que generan mas eventos noticiosos por dia
 - Correlacion AvgTone vs numero de fuentes
@@ -86,10 +121,9 @@ Cada análsiis está como un archivo `.py` separado dentro de la carpeta `jobs/`
 
 Como Parquet es de formato columnar (a diferencia de CSV) entonces en vez de guardar los datos fila por fila, los guarda columna por columna. Parquet ya trae "tageado" qué tipo de dato es cada columna ( número, texto, fecha, etc)  dentro del mismo archivo y así Spark no tiene que adivinar.
 
-Entonces: spark.read.parquet(...) Spark no lee nada todavía.. Espera el resultado de verdad como
-con .show() o .count().
+Entonces: spark.read.parquet(...) Spark no lee nada todavía. Espera el resultado de verdad como con .show() o .count().
 
-Básicamente, en resumen, Spark hace esto:
+En resumen, Spark realiza esto:
 1. Leer (spark.read.parquet)
 2. Transformar (filter, groupBy, join, explode, Window) (nunca tocan datos hasta acción las dispara]
 3. Actuar (.show(), count()).
@@ -123,10 +157,6 @@ Básicamente, en resumen, Spark hace esto:
 - Frecuencia de conflictos por etnia de los actores
 - Deteccion de breaking news (0 a 100+ menciones en <1h)
 
-  
-
-
-
 
 #### Loader a MongoDB
 
@@ -143,14 +173,11 @@ flowchart LR
     SparkW2 -->|resultados 19 analisis| Mongo
 ```
 
-TODO: aca falta definir el esquema de Mongo. Por ahora la idea es que cada uno de los 19 analisis (17 + 2) tenga su propia coleccion en Mongo, ya con el resultado calculado (no datos crudos), pa que Superset solo tenga que leer y graficar sin tener que procesar nada.
+Cada uno de los 19 analisis (17 + 2) tiene su propia coleccion en MongoDB, ya con el resultado calculado (no datos crudos), para que Superset solo tenga que leer y graficar sin tener que procesar nada.
 
-Pendiente:
-- Definir nombres de colecciones
-- Definir estructura de documentos por cada analisis (capaz no todos son iguales, unos son series de tiempo, otros son rankings, otros son matrices/grafos)
-- Quien hace el insert, Spark directo o un script aparte
+Se definien los nombres de colecciones, la estructura de documentos por cada análisis ya que no todos son iguales, unos son series de tiempo, otros son rankings y otros son matrices/grafos.
 
-> El encargado de esta área debe explicar su implementación.
+> El encargado de esta área debe explicar su implementación. !!!!!
 
 #### Capa de Presentacion
 
@@ -168,19 +195,15 @@ flowchart LR
     Mongo --> Superset[Apache Superset]
 ```
 
-Se va a usar Apache Superset conectado a Mongo (o a lo que termine siendo el datasource final, revisar si Superset jala bien de Mongo directo o si toca meter algo intermedio).
+Decición del equipo: Se va a usar Apache Superset conectado a MongoDB (o lo que termine siendo el datasource final y se revisar en caso de que Superset extrae bien de MongoDB directamente o si se necesita un elemento intermedio).
 
-La idea es que sea sencillo, nada de drill downs como dice el enunciado, solo mostrar los 19 analisis con su grafico/tabla correspondiente, en una o varias paginas/dashboards.
+Se muestra los 19 análisis con su grafico/tabla correspondiente, en una o varias paginas/dashboards sin drill downs
 
-TODO:
-- Confirmar conexion Superset-Mongo
-- Armar los dashboards
-- Las 3 conclusiones que pide el enunciado (esto se hace al final cuando ya hay datos reales)
-
-> El encargado de esta área debe explicar su implementación.
+<img width="1832" height="722" alt="image" src="https://github.com/user-attachments/assets/deebac40-05e8-4ab9-9cd9-33d9d78e2ceb" />
 
 
-#### Capa final - Orquestacion por medio de Airflow 
+
+#### Capa final - Orquestación por medio de Airflow 
 
 **Diagrama final: pipeline completo con Airflow como orquestador**
 
